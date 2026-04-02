@@ -3,6 +3,7 @@ print("successfully loaded")
 local Players          = game:GetService("Players")
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local player           = Players.LocalPlayer
 
 local TRADE_PROMPT_TEXT    = "Trade Request"
@@ -281,7 +282,7 @@ local function flashDot(dot, color)
 end
 
 -- ══════════════════════════════════════════════════════
--- LOGIC (ORIGINAL WORKING VERSION)
+-- LOGIC (FIXED FOR CODEX)
 -- ══════════════════════════════════════════════════════
 
 task.delay(INITIAL_DELAY, function()
@@ -299,23 +300,46 @@ task.delay(INITIAL_DELAY, function()
 
     setStatus("WAITING FOR TRADE...", Color3.fromRGB(0,200,255))
 
+    -- Universal button clicker that works for both Yes and Ready buttons
+    local function clickButton(button)
+        if not button then return false end
+        
+        -- Method 1: Try firesignal (if available)
+        pcall(function()
+            if firesignal then
+                firesignal(button.Activated)
+            end
+        end)
+        
+        -- Method 2: VirtualInputManager click (works on Codex)
+        pcall(function()
+            local pos = button.AbsolutePosition + (button.AbsoluteSize / 2)
+            VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 1)
+            task.wait(0.05)
+            VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 1)
+        end)
+        
+        -- Method 3: Direct Fire
+        pcall(function()
+            button:Fire()
+        end)
+        
+        return true
+    end
+
     local function clickYes(prompt)
         local yesButton = prompt:FindFirstChild("Yes", true)
         if yesButton then
-            if firesignal then
-                firesignal(yesButton.Activated)
-            else
-                local VIM = game:GetService("VirtualInputManager")
-                local pos = yesButton.AbsolutePosition + (yesButton.AbsoluteSize / 2)
-                VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true,  game, 1)
-                VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 1)
-            end
+            clickButton(yesButton)
         end
     end
 
     local function Accept()
         pcall(function()
-            firesignal(player.PlayerGui.TradeLiveTrade.TradeLiveTrade.Other.ReadyButton.Activated)
+            local readyButton = player.PlayerGui.TradeLiveTrade.TradeLiveTrade.Other.ReadyButton
+            if readyButton then
+                clickButton(readyButton)
+            end
         end)
     end
 
@@ -343,5 +367,6 @@ task.delay(INITIAL_DELAY, function()
         end
     end)
 
-    print("[67HUB] Auto trade running.")
+    print("[67HUB] Auto trade running on Codex.")
+    setStatus("READY & RUNNING ✅", Color3.fromRGB(0,255,100))
 end)
